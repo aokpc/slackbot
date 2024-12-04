@@ -1,1 +1,3 @@
 # slackbot
+
+slackのメッセージをアーカイブするだけのbot

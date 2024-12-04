@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>771</title>
+</head>
+
+<body>
+    <style>
+        .scrollbase {
+            width: 100%;
+            display: flex;
+            flex-wrap: nowrap;
+            height: 90vh;
+            overflow-y: scroll;
+        }
+
+        .scroll {
+            height: auto;
+            padding: 10px;
+            width: 95%;
+        }
+
+        .msg {
+            padding: 5px;
+            margin: 5px;
+            border: 1px;
+            border-style: solid;
+        }
+
+        .icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10%;
+        }
+
+        .name {
+            margin: 10px;
+        }
+
+        .text {
+            width: 100%;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+    </style>
+    <input type="file" class="file" accept="application/json">
+    <span class="title"></span>
+    <div class="scrollbase">
+        <div class="scroll"></div>
+    </div>
+    <script>
+        const c = (name) => document.createElement(name)
+        const q = (select) => document.querySelector(select)
+        function title(text) {
+            q("title").innerText = text
+            q("span.title").innerText = text
+        }
+        function createMsg(message, users) {
+            const base = c("div")
+            base.className = "msg"
+
+            const icon = c("img")
+            icon.src = users[message.user].img
+            icon.className = "icon"
+            base.appendChild(icon)
+
+            const header = c("span")
+
+            const name = c("b")
+            name.className = "name"
+            name.innerText = users[message.user].name
+            header.appendChild(name)
+
+            const time = c("span")
+            time.className = "time"
+            time.innerText = new Date(Number(message.ts) * 1000).toLocaleString().slice(0, -3)
+            header.appendChild(time)
+            base.appendChild(header)
+
+            const text = c("pre")
+            text.className = "text"
+            let txt = message.text
+            const replace = txt.match(/<@U.*?>/g)
+
+            replace && replace.forEach(e => {
+                const id = e.slice(2, -1)
+                if (users[id]) {
+                    txt = txt.replaceAll(id, users[id].name)
+                }
+            })
+
+            text.innerText = txt
+            base.appendChild(text)
+
+            if (message.replies && message.replies.length) {
+                const replies = c("details")
+                replies.className = "replies"
+
+                const summary = c("summary")
+                summary.className = "replies-summary"
+                summary.innerText = `${message.replies.length} 件の返信`
+
+                replies.appendChild(summary)
+                message.replies.forEach(m => {
+                    replies.appendChild(createMsg(m, users))
+                });
+                base.appendChild(replies)
+            }
+            return base
+        }
+
+        const file = q("input.file")
+        const div = q("div.scroll")
+        file.addEventListener("change", async () => {
+            if (file.files.length == 1) {
+                console.log("File selected: ", file.files[0]);
+                const { users, messages } = JSON.parse(await file.files[0].text())
+                messages.forEach(m => {
+                    div.appendChild(createMsg(m, users))
+                })
+                title(file.files[0].name)
+            }
+        });
+    </script>
+</body>
+
+</html>
