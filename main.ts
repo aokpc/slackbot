@@ -72,11 +72,19 @@ async function archive(channel: string): Promise<slackHistory> {
             if (message.text || message.files) {
                 let text = message.text || ""
                 if (!users[message.user!]) {
-                    const res = await app.users.info({ user: message.user! })
-                    users[message.user!] = {
-                        user: res.user!.id!,
-                        img: res.user!.profile!.image_72!,
-                        name: res.user!.profile!.display_name! || res.user!.real_name!,
+                    try {
+                        const res = await app.users.info({ user: message.user! })
+                        users[message.user!] = {
+                            user: res.user!.id!,
+                            img: res.user!.profile!.image_72!,
+                            name: res.user!.profile!.display_name! || res.user!.real_name!,
+                        }
+                    } catch (_) {
+                        users[message.user!] = {
+                            user: message.user!,
+                            img: message.user!,
+                            name: "NotFound_" + message.user!,
+                        }
                     }
                 }
                 if (message.files) {
