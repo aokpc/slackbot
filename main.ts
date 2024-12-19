@@ -1,7 +1,7 @@
 import * as SlackAPI from "npm:@slack/web-api"
 
 const TOKEN_APP = Deno.env.get("TOKEN")
-
+const ADMIN = Deno.env.get("ADMIN")
 const app = new SlackAPI.WebClient(TOKEN_APP)
 const slack = new EventTarget()
 
@@ -40,7 +40,7 @@ slack.addEventListener("url_verification", (data) => {
 })
 slack.addEventListener("event_callback", async (data) => {
     const event = data as SlackEvent
-    if (event.data.event.type === "message") {
+    if (event.data.event.type === "message" && (!ADMIN || (ADMIN && event.data.event.user === ADMIN))) {
         if (event.data.event.text === "771:save") {
             const channel = event.data.event.channel
             const res = await app.conversations.info({ channel })
