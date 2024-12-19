@@ -1,7 +1,7 @@
 import * as SlackAPI from "npm:@slack/web-api"
 
 const TOKEN_APP = Deno.env.get("TOKEN")
-const ADMIN = Deno.env.get("ADMIN")
+const ADMIN = "U07NAJ6QBC6"
 const app = new SlackAPI.WebClient(TOKEN_APP)
 const slack = new EventTarget()
 
