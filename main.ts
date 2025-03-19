@@ -1,4 +1,4 @@
-import * as SlackAPI from "npm:@slack/web-api"
+import * as SlackAPI from "npm:@slack/web-api@6.13.0"
 
 const TOKEN_APP = Deno.env.get("TOKEN")
 const ADMIN = "U07NAJ6QBC6"
@@ -45,6 +45,7 @@ slack.addEventListener("event_callback", async (data) => {
             const channel = event.data.event.channel
             const res = await app.conversations.info({ channel })
             const name = res.channel!.name
+            await sendTxt(channel, name + ": 保存を開始します...")
             const body = new TextEncoder().encode(JSON.stringify(await archive(channel), null, 1))
             const upload = await app.files.getUploadURLExternal({ filename: `messageArchive-${name!}.json`, length: body.length });
             await fetch(upload.upload_url!, {
@@ -53,6 +54,7 @@ slack.addEventListener("event_callback", async (data) => {
                 }, body
             })
             await app.files.completeUploadExternal({ files: [{ id: upload.file_id!, title: `messageArchive-${name!}.json` }], channel_id: channel })
+            await sendTxt(channel, name + ": 保存が完了しました")
         } else if (event.data.event.text === "771:?") {
             const channel = event.data.event.channel
             await sendTxt(channel, "ok")
@@ -60,12 +62,16 @@ slack.addEventListener("event_callback", async (data) => {
     }
 })
 
+async function history(params: SlackAPI.ConversationsHistoryArguments): Promise<SlackAPI.ConversationsHistoryResponse> {
+    return await (await fetch("https://slack.com/api/conversations.history", { body: JSON.stringify(params), method: "POST", headers: { Authorization: "Bearer " + TOKEN_APP, "Content-Type": "application/json" } })).json()
+}
+
 async function archive(channel: string): Promise<slackHistory> {
     const users: Record<string, slackUser> = {}
     const historys: slackMessage[] = []
     let cursor: string | undefined;
     while (true) {
-        const res = await app.conversations.history({ channel, cursor, limit: 500 })
+        const res = await history({ channel, cursor, limit: 500 })
         for (const message of res.messages!) {
             if (message.text || message.files) {
                 let text = message.text || ""
