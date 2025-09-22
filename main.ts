@@ -67,7 +67,6 @@ slack.addEventListener("slash_command", async (data) => {
     try {
         const res = await app.conversations.info({ channel })
         const name = res.channel!.name
-        await sendTxt(channel, `${name}: アーカイブを開始します...`)
 
         const body = new TextEncoder().encode(JSON.stringify(await archive(channel), null, 1))
         const upload = await app.files.getUploadURLExternal({
@@ -90,8 +89,6 @@ slack.addEventListener("slash_command", async (data) => {
             }],
             channel_id: channel
         })
-
-        await sendTxt(channel, `${name}: アーカイブが完了しました`)
     } catch (error) {
         console.error("Archive error:", error)
         await sendTxt(channel, "アーカイブ中にエラーが発生しました。")
