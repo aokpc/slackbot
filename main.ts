@@ -1,7 +1,7 @@
 import * as SlackAPI from "npm:@slack/web-api@6.13.0"
 
 const TOKEN_APP = Deno.env.get("TOKEN")
-const ADMIN = "U07NAJ6QBC6"
+const ADMIN = null
 const app = new SlackAPI.WebClient(TOKEN_APP)
 const slack = new EventTarget()
 
@@ -41,24 +41,60 @@ slack.addEventListener("url_verification", (data) => {
 slack.addEventListener("event_callback", async (data) => {
     const event = data as SlackEvent
     if (event.data.event.type === "message" && (!ADMIN || (ADMIN && event.data.event.user === ADMIN))) {
-        if (event.data.event.text === "771:save") {
-            const channel = event.data.event.channel
-            const res = await app.conversations.info({ channel })
-            const name = res.channel!.name
-            //await sendTxt(channel, name + ": 保存を開始します...")
-            const body = new TextEncoder().encode(JSON.stringify(await archive(channel), null, 1))
-            const upload = await app.files.getUploadURLExternal({ filename: `messageArchive-${name!}.json`, length: body.length });
-            await fetch(upload.upload_url!, {
-                method: "POST", headers: {
-                    "content-type": "application/json"
-                }, body
-            })
-            await app.files.completeUploadExternal({ files: [{ id: upload.file_id!, title: `messageArchive-${name!}.json` }], channel_id: channel })
-            //await sendTxt(channel, name + ": 保存が完了しました")
-        } else if (event.data.event.text === "771:?") {
+        if (event.data.event.text === "771:?") {
             const channel = event.data.event.channel
             await sendTxt(channel, "ok")
         }
+    }
+})
+
+// スラッシュコマンド用のイベントリスナー
+slack.addEventListener("slash_command", async (data) => {
+    const event = data as SlackEvent
+    event.resolve(new Response("アーカイブを開始しています...", {
+        headers: { "content-type": "text/plain" }
+    }))
+
+    const channel = event.data.channel_id
+    const user = event.data.user_id
+
+    // 管理者チェック
+    if (ADMIN && user !== ADMIN) {
+        await sendTxt(channel, "このコマンドを実行する権限がありません。")
+        return
+    }
+
+    try {
+        const res = await app.conversations.info({ channel })
+        const name = res.channel!.name
+        await sendTxt(channel, `${name}: アーカイブを開始します...`)
+
+        const body = new TextEncoder().encode(JSON.stringify(await archive(channel), null, 1))
+        const upload = await app.files.getUploadURLExternal({
+            filename: `messageArchive-${name!}.json`,
+            length: body.length
+        });
+
+        await fetch(upload.upload_url!, {
+            method: "POST",
+            headers: {
+                "content-type": "application/json"
+            },
+            body
+        })
+
+        await app.files.completeUploadExternal({
+            files: [{
+                id: upload.file_id!,
+                title: `messageArchive-${name!}.json`
+            }],
+            channel_id: channel
+        })
+
+        await sendTxt(channel, `${name}: アーカイブが完了しました`)
+    } catch (error) {
+        console.error("Archive error:", error)
+        await sendTxt(channel, "アーカイブ中にエラーが発生しました。")
     }
 })
 
@@ -156,6 +192,25 @@ async function handler(request: Request): Promise<Response> {
         setTimeout(() => {
             event.resolve(new Response(""))
         }, 2000)
+        return promise
+    } else if (url.pathname === "/slack/command" && request.method === "POST") {
+        // スラッシュコマンドのハンドリング
+        const formData = await request.formData()
+        const slashCommandData = {
+            type: "slash_command",
+            command: formData.get("command"),
+            text: formData.get("text"),
+            channel_id: formData.get("channel_id"),
+            user_id: formData.get("user_id"),
+            team_id: formData.get("team_id")
+        }
+        console.log("Slash command:", slashCommandData)
+        const { promise, resolve } = Promise.withResolvers<Response>()
+        const event = new SlackEvent(slashCommandData, resolve)
+        slack.dispatchEvent(event)
+        setTimeout(() => {
+            event.resolve(new Response("コマンドの処理がタイムアウトしました"))
+        }, 5000)
         return promise
     } else if (url.pathname === "/") {
         return new Response(await Deno.readTextFile("./index.html"), { headers: { "content-type": "text/html" } })
