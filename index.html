@@ -4,125 +4,1152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>771</title>
+    <title>Slack Log Viewer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 
 <body>
     <style>
-        .scrollbase {
-            width: 100%;
-            display: flex;
-            flex-wrap: nowrap;
-            height: 90vh;
-            overflow-y: scroll;
+        :root {
+            --primary-color: #4a154b;
+            --secondary-color: #36c5f0;
+            --background-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --text-color: #1d1c1d;
+            --text-muted: #616061;
+            --border-color: #e0e0e0;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --highlight-color: #fff2e0;
         }
 
-        .scroll {
-            height: auto;
-            padding: 10px;
-            width: 95%;
+        [data-theme="dark"] {
+            --background-color: #1a1d21;
+            --surface-color: #2c2d30;
+            --text-color: #d1d2d3;
+            --text-muted: #9ca3af;
+            --border-color: #3f4146;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --highlight-color: #2c3e50;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .header {
+            background: var(--surface-color);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: -350px;
+            top: 0;
+            width: 350px;
+            height: 100vh;
+            background: var(--surface-color);
+            border-right: 1px solid var(--border-color);
+            z-index: 200;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .sidebar-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 3px;
+        }
+
+        .sidebar-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .file-list {
+            padding: 0;
+        }
+
+        .file-item {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .file-item:hover {
+            background: var(--highlight-color);
+            padding-left: 1.5rem;
+        }
+
+        .file-item.active {
+            background: var(--secondary-color);
+            color: white;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .file-item.active:hover {
+            background: var(--secondary-color);
+            padding-left: 1rem;
+        }
+
+        .file-name {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .file-path {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            opacity: 0.8;
+        }
+
+        .file-item.active .file-path {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .file-stats {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 1rem;
+        }
+
+        .file-item.active .file-stats {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 50%;
+            left: 1rem;
+            transform: translateY(-50%);
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            z-index: 150;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar-toggle:hover {
+            background: #2aa8c8;
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .sidebar-toggle.hidden {
+            display: none;
+        }
+
+        .main-content.sidebar-open {
+            margin-left: 350px;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 150;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .file-input {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-button {
+            background: var(--secondary-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .file-button:hover {
+            background: #2aa8c8;
+            transform: translateY(-1px);
+        }
+
+        .search-box {
+            position: relative;
+            min-width: 250px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.5rem 2.5rem 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--surface-color);
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background: var(--border-color);
+        }
+
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            min-height: calc(100vh - 80px);
+        }
+
+        .channel-info {
+            background: var(--surface-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+
+        .channel-info.visible {
+            display: block;
+        }
+
+        .channel-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--border-color);
+        }
+
+        .messages-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .msg {
-            padding: 5px;
-            margin: 5px;
-            border: 1px;
-            border-style: solid;
+            background: var(--surface-color);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .msg:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .msg.highlight {
+            background: var(--highlight-color);
+            border-color: var(--secondary-color);
+        }
+
+        .msg-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            gap: 0.75rem;
         }
 
         .icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 10%;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 2px solid var(--border-color);
+        }
+
+        .user-info {
+            flex-grow: 1;
         }
 
         .name {
-            margin: 10px;
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 0.95rem;
+        }
+
+        .time {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
         }
 
         .text {
-            width: 100%;
-            word-break: break-word;
+            line-height: 1.5;
             white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        .mention {
+            background: var(--secondary-color);
+            color: white;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mention:hover {
+            background: #2aa8c8;
+            transform: scale(1.05);
+        }
+
+        .slack-link {
+            color: var(--secondary-color);
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .slack-link:hover {
+            color: #2aa8c8;
+            text-decoration: underline;
+        }
+
+        .msg-actions {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .msg:hover .msg-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+
+        .replies {
+            margin-top: 1rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem;
+        }
+
+        .replies-summary {
+            color: var(--secondary-color);
+            cursor: pointer;
+            font-weight: 500;
+            padding: 0.5rem 0;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .replies-summary:hover {
+            background: var(--border-color);
+            padding-left: 0.5rem;
+        }
+
+        .replies .msg {
+            margin-left: 1rem;
+            border-left: 3px solid var(--secondary-color);
+            background: var(--background-color);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #fcc;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .controls {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .search-box {
+                min-width: 200px;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .sidebar {
+                width: 100%;
+                left: -100%;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .main-content.sidebar-open {
+                margin-left: 0;
+            }
+
+            .sidebar-toggle {
+                left: 0.5rem;
+                padding: 0.5rem;
+            }
         }
     </style>
-    <input type="file" class="file" accept="application/json">
-    <span class="title"></span>
-    <div class="scrollbase">
-        <div class="scroll"></div>
+
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fab fa-slack"></i>
+                <span>Slack Log Viewer</span>
+            </div>
+            <div class="controls">
+                <div class="file-input-wrapper">
+                    <input type="file" class="file-input" id="fileInput" accept="application/json" multiple
+                        webkitdirectory>
+                    <label for="fileInput" class="file-button">
+                        <i class="fas fa-folder-open"></i>
+                        フォルダを選択
+                    </label>
+                </div>
+                <div class="file-input-wrapper">
+                    <input type="file" class="file-input" id="singleFileInput" accept="application/json">
+                    <label for="singleFileInput" class="file-button">
+                        <i class="fas fa-file"></i>
+                        ファイルを選択
+                    </label>
+                </div>
+                <div class="search-box">
+                    <input type="text" class="search-input" id="searchInput" placeholder="メッセージを検索...">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+                <button class="theme-toggle" id="themeToggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <i class="fas fa-folder-open"></i>
+                ファイル一覧
+            </div>
+            <button class="sidebar-close" id="sidebarClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="file-list" id="fileList"></div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-folder"></i>
+    </button>
+
+    <div class="main-content" id="mainContent">
+        <div class="channel-info" id="channelInfo">
+            <div class="channel-title" id="channelTitle"></div>
+            <div class="stats">
+                <span id="messageCount"></span>
+                <span id="userCount"></span>
+                <span id="dateRange"></span>
+            </div>
+        </div>
+
+        <div class="empty-state" id="emptyState">
+            <i class="fas fa-folder-open"></i>
+            <h2>Slackログファイルまたはフォルダを選択してください</h2>
+            <p>単一のJSONファイルまたはJSONファイルを含むフォルダを選択してメッセージを表示します</p>
+            <p><small>フォルダを選択するとサイドバーでファイル間を簡単に移動できます</small></p>
+            <p><small>キーボードショートカット: Ctrl/Cmd + E でサイドバー表示</small></p>
+        </div>
+
+        <div class="messages-container" id="messagesContainer"></div>
     </div>
     <script>
-        const c = (name) => document.createElement(name)
-        const q = (select) => document.querySelector(select)
-        function title(text) {
-            q("title").innerText = text
-            q("span.title").innerText = text
-        }
-        function createMsg(message, users) {
-            const base = c("div")
-            base.className = "msg"
+        // !!TEAM_IDは必ず更新!!
+        const TEAM_ID = "T07NVSAU7KK"
 
-            const icon = c("img")
-            icon.src = users[message.user].img
-            icon.className = "icon"
-            base.appendChild(icon)
+        // アプリケーションの状態管理
+        class SlackLogViewer {
+            constructor() {
+                this.data = null;
+                this.filteredMessages = [];
+                this.searchTerm = '';
+                this.isDarkMode = localStorage.getItem('darkMode') === 'true';
+                this.jsonFiles = [];
+                this.currentFileIndex = -1;
 
-            const header = c("span")
+                this.initializeElements();
+                this.setupEventListeners();
+                this.applyTheme();
+            }
 
-            const name = c("b")
-            name.className = "name"
-            name.innerText = users[message.user].name
-            header.appendChild(name)
+            initializeElements() {
+                this.fileInput = document.getElementById('fileInput');
+                this.singleFileInput = document.getElementById('singleFileInput');
+                this.searchInput = document.getElementById('searchInput');
+                this.themeToggle = document.getElementById('themeToggle');
+                this.channelInfo = document.getElementById('channelInfo');
+                this.channelTitle = document.getElementById('channelTitle');
+                this.messageCount = document.getElementById('messageCount');
+                this.userCount = document.getElementById('userCount');
+                this.dateRange = document.getElementById('dateRange');
+                this.emptyState = document.getElementById('emptyState');
+                this.messagesContainer = document.getElementById('messagesContainer');
+                this.fileList = document.getElementById('fileList');
+                this.sidebar = document.getElementById('sidebar');
+                this.sidebarToggle = document.getElementById('sidebarToggle');
+                this.sidebarClose = document.getElementById('sidebarClose');
+                this.overlay = document.getElementById('overlay');
+                this.mainContent = document.getElementById('mainContent');
+            }
 
-            const time = c("span")
-            time.className = "time"
-            time.innerText = new Date(Number(message.ts) * 1000).toLocaleString().slice(0, -3)
-            header.appendChild(time)
-            base.appendChild(header)
+            setupEventListeners() {
+                this.fileInput.addEventListener('change', (e) => this.handleFolderLoad(e));
+                this.singleFileInput.addEventListener('change', (e) => this.handleSingleFileLoad(e));
+                this.searchInput.addEventListener('input', (e) => this.handleSearch(e));
+                this.themeToggle.addEventListener('click', () => this.toggleTheme());
+                this.sidebarToggle.addEventListener('click', () => this.toggleSidebar());
+                this.sidebarClose.addEventListener('click', () => this.closeSidebar());
+                this.overlay.addEventListener('click', () => this.closeSidebar());
 
-            const text = c("pre")
-            text.className = "text"
-            let txt = message.text
-            const replace = txt.match(/<@U.*?>/g)
-
-            replace && replace.forEach(e => {
-                const id = e.slice(2, -1)
-                if (users[id]) {
-                    txt = txt.replaceAll(id, users[id].name)
-                }
-            })
-
-            text.innerText = txt
-            base.appendChild(text)
-
-            if (message.replies && message.replies.length) {
-                const replies = c("details")
-                replies.className = "replies"
-
-                const summary = c("summary")
-                summary.className = "replies-summary"
-                summary.innerText = `${message.replies.length} 件の返信`
-
-                replies.appendChild(summary)
-                message.replies.forEach(m => {
-                    replies.appendChild(createMsg(m, users))
+                // キーボードショートカット
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        if (e.key === 'f') {
+                            e.preventDefault();
+                            this.searchInput.focus();
+                        }
+                        if (e.key === 'd') {
+                            e.preventDefault();
+                            this.toggleTheme();
+                        }
+                        if (e.key === 'e') {
+                            e.preventDefault();
+                            this.toggleSidebar();
+                        }
+                    }
+                    if (e.key === 'Escape') {
+                        this.closeSidebar();
+                    }
                 });
-                base.appendChild(replies)
             }
-            return base
+
+            async handleFolderLoad(event) {
+                const files = Array.from(event.target.files);
+                this.jsonFiles = files.filter(file =>
+                    file.name.toLowerCase().endsWith('.json') &&
+                    file.type === 'application/json'
+                );
+
+                if (this.jsonFiles.length === 0) {
+                    this.showError('選択したフォルダにJSONファイルが見つかりません。');
+                    return;
+                }
+
+                // ファイル情報を事前読み込み
+                await this.preloadFileInfo();
+                this.displayFileList();
+                this.openSidebar();
+            }
+
+            async handleSingleFileLoad(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                this.showLoading();
+
+                try {
+                    const text = await file.text();
+                    this.data = JSON.parse(text);
+
+                    if (!this.validateData(this.data)) {
+                        throw new Error('無効なデータ形式です');
+                    }
+
+                    this.filteredMessages = this.data.messages.reverse() || [];
+                    this.updateTitle(file.name);
+                    this.showChannelInfo();
+                    this.renderMessages();
+                    this.hideEmptyState();
+
+                } catch (error) {
+                    this.showError(`ファイルの読み込みに失敗しました: ${error.message}`);
+                }
+            }
+
+            async preloadFileInfo() {
+                for (let i = 0; i < this.jsonFiles.length; i++) {
+                    const file = this.jsonFiles[i];
+                    try {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+
+                        if (this.validateData(data)) {
+                            file._preloadedData = {
+                                messageCount: data.messages.length,
+                                userCount: Object.keys(data.users).length,
+                                channel: data.channel
+                            };
+                        }
+                    } catch (error) {
+                        console.warn(`プリロードエラー (${file.name}):`, error);
+                        file._preloadedData = {
+                            messageCount: 0,
+                            userCount: 0,
+                            channel: 'エラー'
+                        };
+                    }
+                }
+            }
+
+            displayFileList() {
+                this.fileList.innerHTML = '';
+
+                this.jsonFiles.forEach((file, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    item.dataset.index = index;
+
+                    const preloaded = file._preloadedData || {};
+
+                    item.innerHTML = `
+                        <div class="file-name">
+                            <i class="fas fa-file-alt"></i>
+                            ${file.name}
+                        </div>
+                        <div class="file-path">${file.webkitRelativePath || file.name}</div>
+                        <div class="file-stats">
+                            <span><i class="fas fa-comments"></i> ${preloaded.messageCount || 0}</span>
+                            <span><i class="fas fa-users"></i> ${preloaded.userCount || 0}</span>
+                            ${preloaded.channel ? `<span><i class="fas fa-hashtag"></i> ${preloaded.channel}</span>` : ''}
+                        </div>
+                    `;
+
+                    item.addEventListener('click', () => this.loadFile(index));
+                    this.fileList.appendChild(item);
+                });
+
+                this.hideEmptyState();
+            }
+
+            async loadFile(index) {
+                if (index < 0 || index >= this.jsonFiles.length) return;
+
+                // 前のアクティブファイルを非アクティブに
+                const prevActive = this.fileList.querySelector('.file-item.active');
+                if (prevActive) {
+                    prevActive.classList.remove('active');
+                }
+
+                // 新しいファイルをアクティブに
+                const currentItem = this.fileList.querySelector(`[data-index="${index}"]`);
+                if (currentItem) {
+                    currentItem.classList.add('active');
+                }
+
+                this.currentFileIndex = index;
+                const file = this.jsonFiles[index];
+
+                this.showLoading();
+
+                try {
+                    const text = await file.text();
+                    this.data = JSON.parse(text);
+
+                    if (!this.validateData(this.data)) {
+                        throw new Error('無効なデータ形式です');
+                    }
+
+                    this.filteredMessages = this.data.messages.reverse() || [];
+                    this.updateTitle(file.name);
+                    this.showChannelInfo();
+                    this.renderMessages();
+                    this.hideEmptyState();
+
+                    // モバイルの場合はサイドバーを閉じる
+                    if (window.innerWidth <= 768) {
+                        this.closeSidebar();
+                    }
+
+                } catch (error) {
+                    this.showError(`ファイルの読み込みに失敗しました: ${error.message}`);
+                }
+            }
+
+            toggleSidebar() {
+                this.sidebar.classList.toggle('open');
+                this.overlay.classList.toggle('visible');
+
+                if (window.innerWidth > 768) {
+                    this.mainContent.classList.toggle('sidebar-open');
+                }
+            }
+
+            openSidebar() {
+                this.sidebar.classList.add('open');
+                this.overlay.classList.add('visible');
+
+                if (window.innerWidth > 768) {
+                    this.mainContent.classList.add('sidebar-open');
+                }
+            }
+
+            closeSidebar() {
+                this.sidebar.classList.remove('open');
+                this.overlay.classList.remove('visible');
+                this.mainContent.classList.remove('sidebar-open');
+            }
+
+            validateData(data) {
+                return data &&
+                    typeof data === 'object' &&
+                    data.users &&
+                    Array.isArray(data.messages);
+            }
+
+            showLoading() {
+                this.messagesContainer.innerHTML = `
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                        <p>読み込み中...</p>
+                    </div>
+                `;
+            }
+
+            showError(message) {
+                this.messagesContainer.innerHTML = `
+                    <div class="error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        ${message}
+                    </div>
+                `;
+            }
+
+            handleSearch(event) {
+                this.searchTerm = event.target.value.toLowerCase();
+                this.filterAndRenderMessages();
+            }
+
+            filterAndRenderMessages() {
+                if (!this.data) return;
+
+                this.filteredMessages = this.data.messages.filter(message => {
+                    const userName = this.data.users[message.user]?.name.toLowerCase() || '';
+                    const messageText = message.text.toLowerCase();
+                    const searchTerms = this.searchTerm.split(' ').filter(term => term.length > 0);
+
+                    return searchTerms.every(term =>
+                        userName.includes(term) ||
+                        messageText.includes(term)
+                    );
+                });
+
+                this.renderMessages();
+            }
+
+            updateTitle(filename) {
+                document.title = `${filename} - Slack Log Viewer`;
+            }
+
+            showChannelInfo() {
+                if (!this.data) return;
+
+                const messages = this.data.messages;
+                const users = Object.keys(this.data.users).length;
+
+                // 日付範囲を計算
+                const timestamps = messages.map(m => Number(m.ts)).sort();
+                const startDate = new Date(timestamps[0] * 1000).toLocaleDateString('ja-JP');
+                const endDate = new Date(timestamps[timestamps.length - 1] * 1000).toLocaleDateString('ja-JP');
+
+                // チャンネル名をクリック可能なリンクにする
+                const channelName = this.data.channel || 'チャンネル';
+                this.channelTitle.innerHTML = `<a href="slack://channel?team=${TEAM_ID}&id=${this.data.channel}" class="slack-link"># ${channelName}</a>`;
+                this.messageCount.innerHTML = `<i class="fas fa-comments"></i> ${messages.length} メッセージ`;
+                this.userCount.innerHTML = `<i class="fas fa-users"></i> ${users} ユーザー`;
+                this.dateRange.innerHTML = `<i class="fas fa-calendar"></i> ${startDate} - ${endDate}`;
+
+                this.channelInfo.classList.add('visible');
+            }
+
+            hideEmptyState() {
+                this.emptyState.style.display = 'none';
+            }
+
+            renderMessages() {
+                if (!this.filteredMessages.length) {
+                    this.messagesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-search"></i>
+                            <h2>検索結果が見つかりません</h2>
+                            <p>検索条件を変更してください</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                this.messagesContainer.innerHTML = '';
+                this.filteredMessages.forEach(message => {
+                    const messageElement = this.createMessageElement(message, this.data.users);
+                    this.messagesContainer.appendChild(messageElement);
+                });
+
+                // 検索ハイライト
+                if (this.searchTerm) {
+                    this.highlightSearchTerms();
+                }
+            }
+
+            createMessageElement(message, users) {
+                const user = users[message.user] || { name: 'Unknown User', img: '' };
+                const base = document.createElement('div');
+                base.className = 'msg';
+
+                // メッセージアクション
+                const actions = document.createElement('div');
+                actions.className = 'msg-actions';
+
+                const openInSlackBtn = document.createElement('button');
+                openInSlackBtn.className = 'action-btn';
+                openInSlackBtn.innerHTML = '<i class="fab fa-slack"></i> Slackで開く';
+                openInSlackBtn.onclick = () => this.openInSlack(message);
+
+                actions.appendChild(openInSlackBtn);
+                base.appendChild(actions);
+
+                // メッセージヘッダー
+                const header = document.createElement('div');
+                header.className = 'msg-header';
+
+                const icon = document.createElement('img');
+                icon.src = user.img;
+                icon.className = 'icon';
+                icon.onerror = () => {
+                    icon.style.display = 'none';
+                };
+                icon.onclick = () => this.openUserInSlack(message.user);
+                icon.style.cursor = 'pointer';
+                icon.title = 'Slackでユーザーを開く';
+
+                const userInfo = document.createElement('div');
+                userInfo.className = 'user-info';
+
+                const name = document.createElement('span');
+                name.className = 'name slack-link';
+                name.textContent = user.name;
+                name.onclick = () => this.openUserInSlack(message.user);
+                name.title = 'Slackでユーザーを開く';
+
+                const time = document.createElement('span');
+                time.className = 'time';
+                time.textContent = this.formatTimestamp(message.ts);
+
+                userInfo.appendChild(name);
+                userInfo.appendChild(time);
+                header.appendChild(icon);
+                header.appendChild(userInfo);
+                base.appendChild(header);
+
+                // メッセージテキスト
+                const text = document.createElement('div');
+                text.className = 'text';
+                text.innerHTML = this.processMessageText(message.text, users);
+                base.appendChild(text);
+
+                // 返信
+                if (message.replies && message.replies.length) {
+                    const replies = document.createElement('details');
+                    replies.className = 'replies';
+
+                    const summary = document.createElement('summary');
+                    summary.className = 'replies-summary';
+                    summary.innerHTML = `<i class="fas fa-reply"></i> ${message.replies.length} 件の返信`;
+
+                    replies.appendChild(summary);
+                    message.replies.forEach(reply => {
+                        replies.appendChild(this.createMessageElement(reply, users));
+                    });
+                    base.appendChild(replies);
+                }
+
+                return base;
+            }
+
+            processMessageText(text, users) {
+                let processedText = text;
+
+                // メンション処理 - クリック可能なリンクにする
+                const mentions = text.match(/<@U[A-Z0-9]+>/g);
+                if (mentions) {
+                    mentions.forEach(mention => {
+                        const userId = mention.slice(2, -1);
+                        if (users[userId]) {
+                            processedText = processedText.replace(
+                                mention,
+                                `<span class="mention" onclick="window.slackViewer.openUserInSlack('${userId}')" title="Slackでユーザーを開く">@${users[userId].name}</span>`
+                            );
+                        }
+                    });
+                }
+
+                // URLを自動リンク化
+                const urlRegex = /(https?:\/\/[^\s]+)>/g;
+                processedText = processedText.replace(urlRegex, '<a href="$1" target="_blank">$1</a>');
+
+                return processedText;
+            }
+
+            formatTimestamp(ts) {
+                const date = new Date(Number(ts) * 1000);
+                const now = new Date();
+                const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 0) {
+                    return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                } else if (diffDays === 1) {
+                    return '昨日 ' + date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    return date.toLocaleDateString('ja-JP') + ' ' +
+                        date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                }
+            }
+
+            highlightSearchTerms() {
+                if (!this.searchTerm) return;
+
+                const searchTerms = this.searchTerm.split(' ').filter(term => term.length > 0);
+                const messages = document.querySelectorAll('.msg');
+
+                messages.forEach(msg => {
+                    const textElement = msg.querySelector('.text');
+                    const nameElement = msg.querySelector('.name');
+
+                    searchTerms.forEach(term => {
+                        if (textElement.textContent.toLowerCase().includes(term) ||
+                            nameElement.textContent.toLowerCase().includes(term)) {
+                            msg.classList.add('highlight');
+                        }
+                    });
+                });
+            }
+
+            toggleTheme() {
+                this.isDarkMode = !this.isDarkMode;
+                localStorage.setItem('darkMode', this.isDarkMode);
+                this.applyTheme();
+            }
+
+            applyTheme() {
+                if (this.isDarkMode) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    this.themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+                } else {
+                    document.documentElement.removeAttribute('data-theme');
+                    this.themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+                }
+            }
+
+            // Slackディープリンク機能
+            openInSlack(message) {
+                const url = `slack://channel?team=${TEAM_ID}&id=${this.data.channel}&message=${message.ts}`;
+                location.href = url
+            }
+
+            openUserInSlack(userId) {
+                const url = `slack://user?team=${TEAM_ID}&id=${userId}`;
+                location.href = url
+            }
+
+            openChannelInSlack(channelId) {
+                const url = `slack://channel?team=${TEAM_ID}&id=${channelId}`;
+                location.href = url
+            }
         }
 
-        const file = q("input.file")
-        const div = q("div.scroll")
-        file.addEventListener("change", async () => {
-            if (file.files.length == 1) {
-                console.log("File selected: ", file.files[0]);
-                const { users, messages } = JSON.parse(await file.files[0].text())
-                messages.forEach(m => {
-                    div.appendChild(createMsg(m, users))
-                })
-                title(file.files[0].name)
-            }
+        // アプリケーション初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            window.slackViewer = new SlackLogViewer();
         });
     </script>
 </body>
