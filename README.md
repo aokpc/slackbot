@@ -7,4 +7,4 @@ envの`TOKEN`にslack botのapi tokenを設定
 
 deploy先のurlをbotのwebhookに設定
 
-`771:save`でメッセージを保存します
+`/771save`でメッセージを保存します
